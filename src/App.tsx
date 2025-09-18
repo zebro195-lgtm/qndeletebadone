@@ -2,10 +2,11 @@ import React from 'react';
 import { useState } from 'react';
 import { PDFScanner } from './components/PDFScanner';
 import { QuestionGenerator } from './components/QuestionGenerator';
-import { FileText, Brain, Menu } from 'lucide-react';
+import { WrongQuestionRemover } from './components/WrongQuestionRemover';
+import { FileText, Brain, Menu, AlertTriangle } from 'lucide-react';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'scanner' | 'generator'>('scanner');
+  const [activeTab, setActiveTab] = useState<'scanner' | 'generator' | 'remover'>('scanner');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
@@ -22,7 +23,7 @@ function App() {
               </h1>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('scanner')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
@@ -46,6 +47,18 @@ function App() {
                 <Brain className="w-4 h-4" />
                 Question Generator
               </button>
+              
+              <button
+                onClick={() => setActiveTab('remover')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'remover'
+                    ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                Remove Wrong Questions
+              </button>
             </div>
           </div>
         </div>
@@ -53,7 +66,9 @@ function App() {
 
       {/* Content */}
       <div className="pt-0">
-        {activeTab === 'scanner' ? <PDFScanner /> : <QuestionGenerator />}
+        {activeTab === 'scanner' && <PDFScanner />}
+        {activeTab === 'generator' && <QuestionGenerator />}
+        {activeTab === 'remover' && <WrongQuestionRemover />}
       </div>
     </div>
   );

@@ -996,3 +996,97 @@ function extractJsonFromText(text: string): string | null {
   
   return text.substring(startIndex, endIndex + 1);
 }
+
+// AI-powered question validation for NAT questions
+export async function validateQuestionWithAI(question: any): Promise<{ isWrong: boolean; reason: string; confidence: number }> {
+  const maxRetries = API_KEYS.length;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const apiKey = getNextApiKey();
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-1.5-flash',
+        generationConfig: {
+          temperature: 0.1,
+          topK: 1,
+          topP: 0.8,
+        }
+      });
+
+      const prompt = `
+You are an expert question validator. Analyze this question and determine if it's correct.
+
+QUESTION TYPE: ${question.question_type}
+QUESTION: ${question.question_statement}
+${question.options ? `OPTIONS: ${question.options.join(', ')}` : ''}
+PROVIDED ANSWER: ${question.answer}
+
+VALIDATION RULES:
+1. For NAT (Numerical Answer Type): Solve the question and check if the provided answer is numerically correct
+2. For MCQ: Check if exactly one option matches the correct answer
+3. For MSQ: Check if the provided options are correct (can be multiple)
+4. For Subjective: Always consider valid
+
+CRITICAL FOR NAT QUESTIONS:
+- Solve the mathematical problem step by step
+- Compare your calculated answer with the provided answer
+- Allow for reasonable rounding differences (±0.01 for decimals)
+- If the provided answer is not a number, mark as wrong
+- If the question cannot be solved mathematically, mark as wrong
+
+RESPONSE FORMAT (JSON only):
+{
+  "isWrong": true/false,
+  "reason": "Detailed explanation of why the question is wrong or correct",
+  "confidence": 0.95,
+  "calculatedAnswer": "Your calculated answer (for NAT questions only)"
+}
+
+CRITICAL: Return ONLY valid JSON. Be thorough in your mathematical calculations.
+`;
+
+      const result = await model.generateContent([prompt]);
+      const response = await result.response;
+      const text = response.text();
+      
+      // Robust JSON extraction
+      const jsonContent = extractJsonFromText(text);
+      if (!jsonContent) {
+        return { isWrong: false, reason: 'AI validation failed - assuming question is correct', confidence: 0.5 };
+      }
+
+      try {
+        const validation = JSON.parse(jsonContent);
+        return {
+          isWrong: validation.isWrong || false,
+          reason: validation.reason || 'AI validation completed',
+          confidence: validation.confidence || 0.8
+        };
+      } catch (parseError) {
+        console.error('JSON parsing error for AI validation:', parseError);
+        return { isWrong: false, reason: 'AI validation parsing failed - assuming question is correct', confidence: 0.5 };
+      }
+
+    } catch (error: any) {
+      retryCount++;
+      console.error(`Error with API key ${retryCount} for AI validation:`, error);
+      
+      if (error.message?.includes('429') || error.message?.includes('quota')) {
+        console.log(`API key ${retryCount} hit rate limit for AI validation, trying next key...`);
+        if (retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+      }
+      
+      if (retryCount >= maxRetries) {
+        console.error(`All ${maxRetries} API keys exhausted for AI validation: ${error.message}`);
+        return { isWrong: false, reason: 'AI validation failed - assuming question is correct', confidence: 0.3 };
+      }
+    }
+  }
+  
+  return { isWrong: false, reason: 'AI validation failed after all retries - assuming question is correct', confidence: 0.3 };
+}

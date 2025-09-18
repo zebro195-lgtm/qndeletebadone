@@ -206,6 +206,29 @@ export function QuestionPreview({ question, index, onDelete, onImageUpload, show
         </div>
       )}
 
+      {/* Answer and Solution */}
+      {(question.answer || question.solution) && (
+        <div className="mt-4 space-y-4">
+          {question.answer && (
+            <div>
+              <h4 className="text-md font-semibold text-gray-800 mb-3">Answer:</h4>
+              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                <span className="text-green-800 font-medium">{question.answer}</span>
+              </div>
+            </div>
+          )}
+          
+          {question.solution && (
+            <div>
+              <h4 className="text-md font-semibold text-gray-800 mb-3">Solution:</h4>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800">
+                {renderMathContent(question.solution)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Continuation Indicator */}
       {question.is_continuation && (
         <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
